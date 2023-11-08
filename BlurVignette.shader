@@ -47,24 +47,21 @@ Shader "Custom/VignetteBlur"
                 return o;
             }
 
-            half4 RadialBlur(sampler2D tex, float2 uv)
+            half4 BoxBlur(sampler2D tex, float2 uv)
             {
                 half4 sum = half4(0, 0, 0, 0);
-                float2 center = float2(0.5, 0.5);
-                float2 delta = uv - center;
-                float distance = length(delta);
-                float angle = atan2(delta.y, delta.x);
+                float blurAmount = _BlurRadius / 10.0;
 
-                for (int i = 0; i < 10; i++)
+                for (int i = -5; i <= 5; i++)
                 {
-                    float blurAmount = i * _BlurRadius / 10.0;
-                    float sampleX = center.x + blurAmount * cos(angle);
-                    float sampleY = center.y + blurAmount * sin(angle);
-                    float2 sampleUV = float2(sampleX, sampleY);
-                    sum += tex2D(tex, sampleUV);
+                    for (int j = -5; j <= 5; j++)
+                    {
+                        float2 sampleUV = uv + float2(i, j) * blurAmount;
+                        sum += tex2D(tex, sampleUV);
+                    }
                 }
 
-                return sum / 10;
+                return sum / 121; // 11x11 box blur kernel
             }
 
             half4 frag(v2f i) : SV_Target
@@ -78,8 +75,8 @@ Shader "Custom/VignetteBlur"
                 // Create the vignette effect
                 float vignette = 1.0 - smoothstep(_VignetteSize, _VignetteSize - _VignetteFeathering, vignetteDistance);
 
-                // Apply the radial blur
-                half4 blurred = RadialBlur(_BlitTexture, i.uv);
+                // Apply the box blur
+                half4 blurred = BoxBlur(_BlitTexture, i.uv);
 
                 // Show only the mask if _ShowOnlyMask is enabled
                 if (_ShowOnlyMask > 0.0)
